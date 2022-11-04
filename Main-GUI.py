@@ -1,5 +1,7 @@
 import os
 import sys
+import codecs
+import time
 import tkinter as tk
 from tkinter import ttk
 import serial
@@ -13,7 +15,7 @@ class MainGui(tk.Tk):
         self.init_finished = False
         self.buttonfont = "Helvetica 16"
         self.dropdownfont = "Helvetica 12"
-        self.ser = serial.Serial()
+        self.ser = serial.serial_for_url('COM3', 115200, do_not_open = True)
         self.port_options = []
         self.optionvar = tk.StringVar()
         self.serial_ports()
@@ -41,7 +43,11 @@ class MainGui(tk.Tk):
         if(not self.ser.is_open):
             self.ser.port = str(self.optionvar.get())
             self.ser.baud = 115200
+            self.ser.rts = True  # Force an RTS reset on open
             self.ser.open()
+            time.sleep(0.005)  # Add a delay to meet the requirements of minimal EN low time (2ms for ESP32-C3)
+            self.ser.rts = False
+            self.ser.dtr = self.ser.dtr   # usbser.sys workaround
         else:
             self.ser.close()
 
@@ -65,12 +71,16 @@ class MainGui(tk.Tk):
 
     def command_line(self):
         if(self.ser.is_open and self.ser._port_handle):
-            while(self.ser.in_waiting):
-                serial_line = self.ser.read(self.ser.in_waiting).decode('utf-8')
-                print(serial_line)
-                #self.cmd_line.insert(tk.END, serial_line)
-                #if(self.cmd_line.size() > 25):
-                    #self.cmd_line.delete(0)
+            if(self.ser.in_waiting):
+                while(self.ser.in_waiting):
+                    try:
+                        serial_line = self.ser.read_until(b'\n')
+                        print(serial_line)
+                        self.cmd_line.insert(tk.END, serial_line)
+                        if(self.cmd_line.size() > 25):
+                            self.cmd_line.delete(0)
+                    except serial.SerialException:
+                        pass
 
     def update_display(self):
         if(self.ser.is_open):
