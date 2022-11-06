@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import codecs
 import time
 import tkinter as tk
@@ -15,6 +16,9 @@ class MainGui(tk.Tk):
         self.init_finished = False
         self.buttonfont = "Helvetica 16"
         self.dropdownfont = "Helvetica 12"
+        self.serial_line = b''
+        self.serial_list = []
+        self.serialcommand= tk.StringVar()
         self.ser = serial.serial_for_url('COM3', 115200, do_not_open = True)
         self.port_options = []
         self.optionvar = tk.StringVar()
@@ -51,7 +55,15 @@ class MainGui(tk.Tk):
         else:
             self.ser.close()
 
+    def validate(self, P): #ensures entered character is an integer
+            if str.isdigit(P) or P == "" or (str.isalpha(P) and str.islower(P)):
+                return True
+            else:
+                return False
+
     def gui_elements(self):
+        #text validation callback registration
+        vcmd = (self.register(self.validate))
 
         #com port selection
         self.portmenu = ttk.Combobox(self, font = self.dropdownfont, textvariable = self.optionvar)
@@ -66,21 +78,47 @@ class MainGui(tk.Tk):
         self.connectbutton["command"] = self.serial_connect
         self.connectbutton.grid(column=1,row=0)
 
+        #console output
         self.cmd_line = tk.Listbox(self, bg = 'black', fg = 'white', height = 395, width = 1195, highlightthickness = 0, selectbackground = 'black', activestyle = tk.NONE)
         self.cmd_line.place(x = 0, y = 320)
 
-    def command_line(self):
+        #serial write box and enter button
+        self.serialwritebox = tk.Entry(self, font = self.buttonfont, textvariable = self.serialcommand, validate = 'key', validatecommand = (vcmd, '%P'))
+        self.serialwritebox.grid(column=0,row=1)
+
+        self.serialsend = tk.Button(self, font = self.buttonfont)
+        self.serialsend["text"] = "Send"
+        self.serialsend["command"] = self.serial_write
+        self.serialsend.grid(column=1,row=1)
+
+    def serial_write(self):
+        cmd = self.serialcommand.get()
+        if(cmd != ""):
+            cmd = cmd + '\n'
+            bytescmd = bytes(cmd, 'utf-8')
+            print(bytescmd)
+            self.serialcommand.set("")
+            if(self.ser.is_open and self.ser._port_handle):
+                    self.ser.write(bytescmd)
+
+    def serial_read(self):
         if(self.ser.is_open and self.ser._port_handle):
             if(self.ser.in_waiting):
-                while(self.ser.in_waiting):
-                    try:
-                        serial_line = self.ser.read_until(b'\n')
-                        print(serial_line)
-                        self.cmd_line.insert(tk.END, serial_line)
-                        if(self.cmd_line.size() > 25):
-                            self.cmd_line.delete(0)
-                    except serial.SerialException:
-                        pass
+                try:
+                    self.serial_line = self.serial_line + self.ser.read(self.ser.in_waiting)
+                    self.serial_list = re.split(rb'(?=\n)', self.serial_line)
+                except serial.SerialException:
+                    pass
+
+    def command_line(self):
+        for line in self.serial_list:
+            if(b'\n' in line):
+                self.cmd_line.insert(tk.END, line)
+                if(self.cmd_line.size() > 25):
+                    self.cmd_line.delete(0)
+            else:
+                self.serial_line = line
+            self.serial_list.remove(line)
 
     def update_display(self):
         if(self.ser.is_open):
@@ -88,6 +126,7 @@ class MainGui(tk.Tk):
         else:
             self.connectbutton["bg"] = "red"
         self.serial_ports()
+        self.serial_read()
         self.command_line()
         self.after(100, self.update_display)
 
