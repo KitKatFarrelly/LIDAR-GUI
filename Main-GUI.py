@@ -55,16 +55,7 @@ class MainGui(tk.Tk):
         else:
             self.ser.close()
 
-    def validate(self, P): #ensures entered character is an integer
-            if str.isdigit(P) or P == "" or (str.isalpha(P) and str.islower(P)):
-                return True
-            else:
-                return False
-
     def gui_elements(self):
-        #text validation callback registration
-        vcmd = (self.register(self.validate))
-
         #com port selection
         self.portmenu = ttk.Combobox(self, font = self.dropdownfont, textvariable = self.optionvar)
         self.portmenu.set(self.port_options[0])
@@ -83,7 +74,7 @@ class MainGui(tk.Tk):
         self.cmd_line.place(x = 0, y = 320)
 
         #serial write box and enter button
-        self.serialwritebox = tk.Entry(self, font = self.buttonfont, textvariable = self.serialcommand, validate = 'key', validatecommand = (vcmd, '%P'))
+        self.serialwritebox = tk.Entry(self, font = self.buttonfont, textvariable = self.serialcommand)
         self.serialwritebox.grid(column=0,row=1)
 
         self.serialsend = tk.Button(self, font = self.buttonfont)
@@ -96,7 +87,6 @@ class MainGui(tk.Tk):
         if(cmd != ""):
             cmd = cmd + '\n'
             bytescmd = bytes(cmd, 'utf-8')
-            print(bytescmd)
             self.serialcommand.set("")
             if(self.ser.is_open and self.ser._port_handle):
                     self.ser.write(bytescmd)
