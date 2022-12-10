@@ -96,12 +96,13 @@ class MainGui(tk.Tk):
             if(self.ser.in_waiting):
                 try:
                     self.serial_line = self.serial_line + self.ser.read(self.ser.in_waiting)
-                    self.serial_list = re.split(rb'(?=\n)', self.serial_line)
+                    self.serial_list = re.split(rb'(?<=\n)', self.serial_line)
                 except serial.SerialException:
                     pass
 
     def command_line(self):
-        for line in self.serial_list:
+        while len(self.serial_list) > 0:
+            line = self.serial_list[0]
             if(b'\n' in line):
                 self.cmd_line.insert(tk.END, line)
                 if(self.cmd_line.size() > 25):
