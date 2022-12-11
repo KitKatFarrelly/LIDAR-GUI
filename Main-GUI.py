@@ -24,11 +24,11 @@ class MainGui(tk.Tk):
         self.optionvar = tk.StringVar()
         self.serial_ports()
         self.gui_elements()
-        self.update_display()
-        self.init_finished = True
         self.image_line = 0
         self.depth_image = []
-
+        self.depth_match_pattern = re.compile(b'.*,.*,.*,.*,.*,.*,.*,.*,.*')
+        self.update_display()
+        self.init_finished = True
 
     def serial_ports(self):
         self.port_options = []
@@ -103,11 +103,14 @@ class MainGui(tk.Tk):
                     pass
 
     def display_image(self): # display depth image to gui
-        pass
+        print(self.depth_image)
     
     def collect_image(self, line):
-        depth_line = str(line).split(',')
-        clean_depth_line = [x for x in depth_line if x.isdigit()]
+        depth_line = line.decode("utf-8").split(',')
+        remove_white_space = []
+        for substring in depth_line:
+            remove_white_space.append(substring.strip())
+        clean_depth_line = [x for x in remove_white_space if bool(re.search(r'\d', x))]
         if(self.image_line % 2):
             self.depth_image.append(clean_depth_line)
         else:
@@ -122,8 +125,11 @@ class MainGui(tk.Tk):
         while len(self.serial_list) > 0:
             line = self.serial_list[0]
             if(b'\n' in line):
-                if(False): # change to match a line which has only depth pixel data
+                if(self.depth_match_pattern.match(line)): # change to match a line which has only depth pixel data
                     self.collect_image(line)
+                else:
+                    self.depth_image.clear() # clears all lines out of the depth image if output is interrupted
+                    self.image_line = 0
                 self.cmd_line.insert(tk.END, line)
                 if(self.cmd_line.size() > 25):
                     self.cmd_line.delete(0)
