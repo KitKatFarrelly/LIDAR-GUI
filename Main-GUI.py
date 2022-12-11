@@ -26,6 +26,8 @@ class MainGui(tk.Tk):
         self.gui_elements()
         self.update_display()
         self.init_finished = True
+        self.image_line = 0
+        self.depth_image = []
 
 
     def serial_ports(self):
@@ -100,10 +102,28 @@ class MainGui(tk.Tk):
                 except serial.SerialException:
                     pass
 
+    def display_image(self): # display depth image to gui
+        pass
+    
+    def collect_image(self, line):
+        depth_line = str(line).split(',')
+        clean_depth_line = [x for x in depth_line if x.isdigit()]
+        if(self.image_line % 2):
+            self.depth_image.append(clean_depth_line)
+        else:
+            self.depth_image.insert(0, clean_depth_line)
+        self.image_line = self.image_line + 1
+        if self.image_line > 7:
+            self.display_image()
+            self.depth_image.clear() # clears all lines out of the depth image
+            self.image_line = 0
+    
     def command_line(self):
         while len(self.serial_list) > 0:
             line = self.serial_list[0]
             if(b'\n' in line):
+                if(False): # change to match a line which has only depth pixel data
+                    self.collect_image(line)
                 self.cmd_line.insert(tk.END, line)
                 if(self.cmd_line.size() > 25):
                     self.cmd_line.delete(0)
